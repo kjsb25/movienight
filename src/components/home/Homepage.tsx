@@ -73,7 +73,7 @@ const HomePage: React.FC = () => {
   return (
     <StyledApp>
       <Stack justifyContent="center" alignItems="center" spacing={2}>
-        <Typography level="h1">Movie List</Typography>
+        <Typography level="h1">🍿Movie List🍿</Typography>
         <form onSubmit={handleSubmit}>
           <Stack>
             <Input
@@ -93,8 +93,14 @@ const HomePage: React.FC = () => {
         </form>
         {successMessage && <p style={{ color: "green" }}>{successMessage}</p>}
         {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-        <Typography>Movie List</Typography>
-        <Table aria-label="basic table">
+        <Table
+          aria-label="basic table"
+          variant="outlined"
+          size="lg"
+          stickyHeader
+          stripe="odd"
+          sx={{ width: "80%", backgroundColor: "white" }}
+        >
           <thead>
             <tr>
               {movies &&
@@ -108,9 +114,9 @@ const HomePage: React.FC = () => {
           <tbody>
             {movies.map((movie) => (
               <tr key={movie.id}>
-                <td>{movie.title}</td>
-                <td>{movie.requester}</td>
                 <td>{new Date(movie.date_submitted).toLocaleString()}</td>
+                <td>{movie.requester}</td>
+                <td>{movie.title}</td>
               </tr>
             ))}
           </tbody>
