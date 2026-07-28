@@ -10,11 +10,9 @@ import {
   Tooltip,
   CircularProgress,
 } from '@mui/joy';
-import { WATCHED_MOVIES, UNWATCH_MOVIE, GET_MOVIES } from '../../graphql/queries';
+import { WATCHED_MOVIES, UNWATCH_MOVIE, MARK_WATCHED, GET_MOVIES } from '../../graphql/queries';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { useConfirm } from '../../hooks/useConfirm';
-import ConfirmDialog from '../common/ConfirmDialog';
 import Poster from '../common/Poster';
 import WatchHistoryCard from './WatchHistoryCard';
 
@@ -22,8 +20,7 @@ const PAGE_SIZE = 25;
 
 const WatchHistory: React.FC = () => {
   const { user } = useAuth();
-  const { showError } = useToast();
-  const { confirm, dialogProps } = useConfirm();
+  const { showError, showUndo } = useToast();
   const isAdmin = user?.is_admin ?? false;
   const [offset, setOffset] = useState(0);
 
@@ -38,19 +35,25 @@ const WatchHistory: React.FC = () => {
       { query: GET_MOVIES },
     ],
   });
+  const [markWatched] = useMutation(MARK_WATCHED, {
+    refetchQueries: [
+      { query: WATCHED_MOVIES, variables: { limit: PAGE_SIZE, offset } },
+      { query: GET_MOVIES },
+    ],
+  });
 
   const movies = data?.watchedMovies ?? [];
 
   const handleUnwatch = async (id: string, title: string) => {
-    const ok = await confirm({
-      title: 'Watch again?',
-      message: `"${title}" will go back to the end of the queue.`,
-      confirmText: 'Watch again',
-      confirmColor: 'primary',
-    });
-    if (!ok) return;
     try {
       await unwatchMovie({ variables: { id } });
+      showUndo(`"${title}" is back in the queue`, async () => {
+        try {
+          await markWatched({ variables: { id } });
+        } catch (err: any) {
+          showError(`Couldn't undo: ${err.message}`);
+        }
+      });
     } catch (err: any) {
       showError(`Error: ${err.message}`);
     }
@@ -279,8 +282,6 @@ const WatchHistory: React.FC = () => {
           </Box>
         )}
       </Box>
-
-      <ConfirmDialog {...dialogProps} />
     </Box>
   );
 };

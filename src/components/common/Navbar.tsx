@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, IconButton, Divider } from '@mui/joy';
+import { Bell, HelpCircle, Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getGravatarUrl } from '../../utils/gravatar';
 import { OnboardingModal } from './OnboardingGuide';
@@ -212,13 +213,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 aria-label="How MovieNight works"
                 onClick={() => setHelpOpen(true)}
                 sx={{
-                  fontWeight: 800,
-                  fontSize: '1rem',
                   color: 'text.secondary',
                   '&:hover': { color: 'primary.300' },
                 }}
               >
-                ?
+                <HelpCircle size={18} strokeWidth={2.25} />
               </IconButton>
               <IconButton
                 variant="plain"
@@ -227,12 +226,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 aria-label="Notification settings"
                 onClick={() => setNotificationsOpen(true)}
                 sx={{
-                  fontSize: '1rem',
                   color: 'text.secondary',
                   '&:hover': { color: 'primary.300' },
                 }}
               >
-                🔔
+                <Bell size={18} strokeWidth={2.25} />
               </IconButton>
               <Button
                 variant="outlined"
@@ -268,7 +266,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setMobileOpen((o) => !o)}
             sx={{ display: { xs: 'flex', sm: 'none' } }}
           >
-            {mobileOpen ? '✕' : '☰'}
+            {mobileOpen ? (
+              <X size={20} strokeWidth={2.25} />
+            ) : (
+              <Menu size={20} strokeWidth={2.25} />
+            )}
           </IconButton>
         </Box>
       </Box>

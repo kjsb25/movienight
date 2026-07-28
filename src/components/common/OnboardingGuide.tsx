@@ -10,6 +10,7 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy';
+import { X } from 'lucide-react';
 
 export const ONBOARDING_DISMISSED_KEY = 'onboarding_dismissed';
 
@@ -64,19 +65,33 @@ const StepList: React.FC<StepActions> = ({ onShowConnections, onShowThisOrThat, 
     return undefined;
   };
 
+  const [lead, ...rest] = STEPS;
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      {STEPS.map((s, i) => {
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
+      {/* Step 1 — lead-in, no emoji column, heavier heading */}
+      <Box>
+        <Typography level="title-md" sx={{ fontWeight: 800, letterSpacing: '-0.01em' }}>
+          Start by suggesting a movie.
+        </Typography>
+        <Typography level="body-sm" sx={{ color: 'text.secondary', mt: 0.25 }}>
+          {lead.description}
+        </Typography>
+      </Box>
+
+      {/* Steps 2–4 — compact rows with emoji accent */}
+      {rest.map((s, i) => {
         const handler = handlerFor(s.actionKey);
         return (
           <Box key={s.title} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
             <Box
               sx={{
-                fontSize: '1.5rem',
+                fontSize: '1.25rem',
                 lineHeight: 1.2,
                 flexShrink: 0,
-                width: 28,
+                width: 24,
                 textAlign: 'center',
+                pt: 0.25,
               }}
               aria-hidden
             >
@@ -84,7 +99,7 @@ const StepList: React.FC<StepActions> = ({ onShowConnections, onShowThisOrThat, 
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography level="title-sm" sx={{ fontWeight: 700 }}>
-                {i + 1}. {s.title}
+                {i + 2}. {s.title}
               </Typography>
               <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
                 {s.description}
@@ -97,7 +112,7 @@ const StepList: React.FC<StepActions> = ({ onShowConnections, onShowThisOrThat, 
                   onClick={handler}
                   sx={{ mt: 0.75, fontWeight: 600, fontSize: '0.75rem' }}
                 >
-                  {s.actionLabel} →
+                  {s.actionLabel}
                 </Button>
               )}
             </Box>
@@ -110,16 +125,7 @@ const StepList: React.FC<StepActions> = ({ onShowConnections, onShowThisOrThat, 
 
 const ExtraTips: React.FC = () => (
   <Box>
-    <Typography
-      level="body-xs"
-      sx={{
-        textTransform: 'uppercase',
-        letterSpacing: '0.08em',
-        fontWeight: 700,
-        color: 'text.tertiary',
-        mb: 1,
-      }}
-    >
+    <Typography level="title-sm" sx={{ fontWeight: 700, mb: 1 }}>
       A few extras
     </Typography>
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -181,7 +187,7 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
         '&:hover': { opacity: 1 },
       }}
     >
-      ✕
+      <X size={16} strokeWidth={2.25} />
     </IconButton>
     <Typography
       level="title-md"

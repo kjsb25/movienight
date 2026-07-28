@@ -18,6 +18,7 @@ import {
   IconButton,
   Divider,
 } from '@mui/joy';
+import { X } from 'lucide-react';
 import { GET_USERS, CREATE_USER, UPDATE_USER, DELETE_USER } from '../../graphql/queries';
 import { User } from '../../models/User';
 import { getGravatarUrl } from '../../utils/gravatar';
@@ -305,7 +306,7 @@ export const UserManagement: React.FC = () => {
                           aria-label={`Delete user ${user.username}`}
                           sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
                         >
-                          <span aria-hidden="true">✕</span>
+                          <X size={16} strokeWidth={2.5} />
                         </IconButton>
                       </Box>
                     </td>
@@ -394,7 +395,7 @@ export const UserManagement: React.FC = () => {
                 aria-label={`Delete user ${user.username}`}
                 sx={{ minWidth: 44, minHeight: 44 }}
               >
-                <span aria-hidden="true">✕</span>
+                <X size={16} strokeWidth={2.5} />
               </IconButton>
             </Box>
           </Sheet>

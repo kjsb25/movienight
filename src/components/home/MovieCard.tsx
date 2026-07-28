@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, Chip, IconButton, Tooltip, Sheet } from '@mui/joy';
+import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { Movie } from '../../models/Movies';
 import Poster from '../common/Poster';
 
@@ -140,12 +141,15 @@ const MovieCard: React.FC<MovieCardProps> = ({
                 sx={{
                   opacity: isSeen ? 0.95 : 0.5,
                   '&:hover': { opacity: 1 },
-                  fontSize: '0.85rem',
                   minWidth: 36,
                   minHeight: 36,
                 }}
               >
-                <span aria-hidden="true">{isSeen ? '👁' : '👁‍🗨'}</span>
+                {isSeen ? (
+                  <Eye size={16} strokeWidth={2.25} />
+                ) : (
+                  <EyeOff size={16} strokeWidth={2.25} />
+                )}
                 {seenCount > 0 && (
                   <Typography
                     component="span"
@@ -167,7 +171,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
               aria-label={`Mark "${movie.title}" as done`}
               sx={{ minWidth: 36, minHeight: 36 }}
             >
-              <span aria-hidden="true">✓</span>
+              <Check size={16} strokeWidth={2.5} />
             </IconButton>
           )}
           {isAdmin && (
@@ -179,7 +183,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
               aria-label={`Remove "${movie.title}"`}
               sx={{ minWidth: 36, minHeight: 36 }}
             >
-              <span aria-hidden="true">✕</span>
+              <X size={16} strokeWidth={2.5} />
             </IconButton>
           )}
         </Box>
