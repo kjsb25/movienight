@@ -17,8 +17,10 @@ jest.mock('@mui/joy', () => {
   };
 });
 
+const undoMock = jest.fn();
+
 function TestConsumer() {
-  const { showSuccess, showError, showToast } = useToast();
+  const { showSuccess, showError, showToast, showUndo } = useToast();
   return (
     <div>
       <button data-testid="success-btn" onClick={() => showSuccess('Done!')}>
@@ -29,6 +31,9 @@ function TestConsumer() {
       </button>
       <button data-testid="toast-btn" onClick={() => showToast('Info', 'warning', 3000)}>
         Toast
+      </button>
+      <button data-testid="undo-btn" onClick={() => showUndo('Removed X', undoMock)}>
+        Trigger Undo Toast
       </button>
     </div>
   );
@@ -75,6 +80,26 @@ describe('ToastProvider', () => {
     const snackbar = screen.getByTestId('snackbar');
     expect(snackbar).toHaveAttribute('data-color', 'warning');
     expect(snackbar).toHaveTextContent('Info');
+  });
+
+  it('showUndo renders a neutral snackbar with an Undo action', () => {
+    undoMock.mockClear();
+    render(
+      <ToastProvider>
+        <TestConsumer />
+      </ToastProvider>,
+    );
+    act(() => {
+      screen.getByTestId('undo-btn').click();
+    });
+    const snackbar = screen.getByTestId('snackbar');
+    expect(snackbar).toHaveAttribute('data-color', 'neutral');
+    expect(snackbar).toHaveTextContent('Removed X');
+    const undoButton = screen.getByRole('button', { name: 'Undo' });
+    act(() => {
+      undoButton.click();
+    });
+    expect(undoMock).toHaveBeenCalledTimes(1);
   });
 });
 

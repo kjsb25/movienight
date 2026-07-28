@@ -13,10 +13,12 @@ import {
   Select,
   Option,
 } from '@mui/joy';
+import { Check, X } from 'lucide-react';
 import {
   GET_MOVIES,
   DELETE_MOVIE,
   MARK_WATCHED,
+  UNWATCH_MOVIE,
   SEED_MOVIES,
   GET_APP_INFO,
   MY_CONNECTIONS,
@@ -54,7 +56,7 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ onShowThisOrThat, onShowConnections }) => {
   const { isAuthenticated, user } = useAuth();
-  const { showError } = useToast();
+  const { showError, showUndo } = useToast();
   const { confirm, dialogProps } = useConfirm();
   const isAdmin = user?.is_admin ?? false;
 
@@ -145,6 +147,14 @@ const HomePage: React.FC<HomePageProps> = ({ onShowThisOrThat, onShowConnections
         : []),
     ],
   });
+  const [unwatchMovie] = useMutation(UNWATCH_MOVIE, {
+    refetchQueries: [
+      { query: GET_MOVIES },
+      ...(selectedConnectionId && selectedConnectionId !== 'solo'
+        ? [{ query: COMBINED_LIST, variables: { connectionId: selectedConnectionId } }]
+        : []),
+    ],
+  });
   const [deleteMovie] = useMutation(DELETE_MOVIE, {
     refetchQueries: [{ query: GET_MOVIES }],
   });
@@ -187,30 +197,30 @@ const HomePage: React.FC<HomePageProps> = ({ onShowThisOrThat, onShowConnections
   );
 
   const handleMarkWatched = async (id: string, movieTitle: string) => {
-    const ok = await confirm({
-      title: 'Mark as done?',
-      message: `"${movieTitle}" will move to your watch history.`,
-      confirmText: 'Done',
-      confirmColor: 'success',
-    });
-    if (!ok) return;
     try {
       await markWatched({ variables: { id } });
+      showUndo(`Marked "${movieTitle}" as done`, async () => {
+        try {
+          await unwatchMovie({ variables: { id } });
+        } catch (err: any) {
+          showError(`Couldn't undo: ${err.message}`);
+        }
+      });
     } catch (err: any) {
       showError(`Error marking movie as done: ${err.message}`);
     }
   };
 
-  const handleMarkWatchedCombined = async (id: string, movieTitle: string, friendName: string) => {
-    const ok = await confirm({
-      title: 'Watched together?',
-      message: `"${movieTitle}" will move to both your and ${friendName}'s watch history, and disappear from your queues.`,
-      confirmText: 'Done',
-      confirmColor: 'success',
-    });
-    if (!ok) return;
+  const handleMarkWatchedCombined = async (id: string, movieTitle: string, _friendName: string) => {
     try {
       await markWatched({ variables: { id } });
+      showUndo(`Marked "${movieTitle}" as done for both of you`, async () => {
+        try {
+          await unwatchMovie({ variables: { id } });
+        } catch (err: any) {
+          showError(`Couldn't undo: ${err.message}`);
+        }
+      });
     } catch (err: any) {
       showError(`Error marking movie as done: ${err.message}`);
     }
@@ -396,16 +406,7 @@ const HomePage: React.FC<HomePageProps> = ({ onShowThisOrThat, onShowConnections
         {/* Recently added — highlighted cards */}
         {recentlyAddedMovies.length > 0 && (
           <Box sx={{ mb: 3 }}>
-            <Typography
-              level="body-xs"
-              sx={{
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                fontWeight: 700,
-                color: 'text.tertiary',
-                mb: 1,
-              }}
-            >
+            <Typography level="title-sm" sx={{ fontWeight: 700, mb: 1 }}>
               Just added
             </Typography>
             {recentlyAddedMovies.map((movie) => {
@@ -510,12 +511,13 @@ const HomePage: React.FC<HomePageProps> = ({ onShowThisOrThat, onShowConnections
                       size="sm"
                       variant="plain"
                       color="neutral"
+                      aria-label="Dismiss"
                       onClick={() =>
                         setRecentlyAddedIds((prev) => prev.filter((id) => id !== movie.id))
                       }
                       sx={{ opacity: 0.4, '&:hover': { opacity: 1 }, flexShrink: 0 }}
                     >
-                      ✕
+                      <X size={16} strokeWidth={2.25} />
                     </IconButton>
                   </Box>
                 </Sheet>
@@ -801,7 +803,7 @@ const HomePage: React.FC<HomePageProps> = ({ onShowThisOrThat, onShowConnections
                                               '&:hover': { opacity: 1 },
                                             }}
                                           >
-                                            <span aria-hidden="true">✓</span>
+                                            <Check size={16} strokeWidth={2.5} />
                                           </IconButton>
                                         </Tooltip>
                                       )}

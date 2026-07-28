@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/joy';
+import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { Movie } from '../../models/Movies';
 import Poster from '../common/Poster';
 
@@ -135,10 +136,13 @@ const MovieRow: React.FC<MovieRowProps> = ({
                 opacity: isSeen ? 0.95 : 0.5,
                 transition: 'opacity 0.15s',
                 '&:hover': { opacity: 1 },
-                fontSize: '0.85rem',
               }}
             >
-              <span aria-hidden="true">{isSeen ? '👁' : '👁‍🗨'}</span>
+              {isSeen ? (
+                <Eye size={16} strokeWidth={2.25} />
+              ) : (
+                <EyeOff size={16} strokeWidth={2.25} />
+              )}
               {seenCount > 0 && (
                 <Typography
                   component="span"
@@ -172,7 +176,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
                 mr: isAdmin ? 0.5 : 0,
               }}
             >
-              <span aria-hidden="true">✓</span>
+              <Check size={16} strokeWidth={2.5} />
             </IconButton>
           )}
           {isAdmin && (
@@ -189,7 +193,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
                 '&:hover': { opacity: 1 },
               }}
             >
-              <span aria-hidden="true">✕</span>
+              <X size={16} strokeWidth={2.5} />
             </IconButton>
           )}
         </td>

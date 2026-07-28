@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, ModalDialog, Typography, Button, Box, Divider } from '@mui/joy';
+import { AlertTriangle, CheckCircle, Info, LucideIcon } from 'lucide-react';
 
 export type ConfirmColor = 'danger' | 'primary' | 'warning' | 'success';
 
@@ -15,11 +16,11 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-const ICONS: Record<ConfirmColor, string> = {
-  danger: '⚠',
-  warning: '⚠',
-  success: '✓',
-  primary: 'ⓘ',
+const ICONS: Record<ConfirmColor, LucideIcon> = {
+  danger: AlertTriangle,
+  warning: AlertTriangle,
+  success: CheckCircle,
+  primary: Info,
 };
 
 const ICON_BG: Record<ConfirmColor, string> = {
@@ -48,6 +49,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
 }) => {
   const isDestructive = confirmColor === 'danger' || confirmColor === 'warning';
+  const Icon = ICONS[confirmColor];
   return (
     <Modal open={open} onClose={onCancel}>
       <ModalDialog
@@ -75,12 +77,10 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1rem',
-                fontWeight: 700,
                 flexShrink: 0,
               }}
             >
-              {ICONS[confirmColor]}
+              <Icon size={18} strokeWidth={2.25} />
             </Box>
           )}
           <Typography
