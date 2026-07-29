@@ -2,6 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import pool from './db';
 import { createList, syncList } from './mdblist';
+import {
+  fetchPlexCollectionsByLabel,
+  deletePlexCollection,
+  resolveMoviesSectionId,
+} from './plexClient';
+
+/** Label applied to every Kometa-managed collection so the reconciler can find them. */
+export const MOVIENIGHT_PLEX_LABEL = 'MovieNight';
 
 export interface ExportListResult {
   name: string;
@@ -221,6 +229,7 @@ export function generateMultiCollectionYaml(lists: ExportListResult[]): string {
     yaml += `    mdblist_list: ${list.mdblistUrl}\n`;
     yaml += `    collection_order: custom\n`;
     yaml += `    sync_mode: sync\n`;
+    yaml += `    label: ${MOVIENIGHT_PLEX_LABEL}\n`;
     yaml += `    radarr_add_missing: true\n`;
     yaml += `    radarr_search: true\n`;
     yaml += `    visible_home: true\n`;
@@ -296,5 +305,54 @@ export async function runKometaExport(options: ExportOptions): Promise<ExportRes
     await fs.promises.writeFile(filePath, yamlContent, 'utf8');
   }
 
+  // 4. Reconcile Plex — delete MovieNight-labeled collections no longer emitted.
+  // Fire-and-swallow: the YAML has already been written, so Kometa will still
+  // update everything correctly. Missing config / Plex unreachable just means
+  // orphan cleanup catches up on the next cycle.
+  await reconcilePlexCollections(lists);
+
   return { filePath, yamlContent, lists };
+}
+
+async function reconcilePlexCollections(lists: ExportListResult[]): Promise<void> {
+  const plexUrl = process.env.PLEX_URL;
+  const plexToken = process.env.PLEX_TOKEN;
+  if (!plexUrl || !plexToken) return;
+
+  try {
+    const sectionId =
+      process.env.PLEX_MOVIES_SECTION_ID || (await resolveMoviesSectionId(plexUrl, plexToken));
+    if (!sectionId) {
+      console.warn('[Kometa Exporter] Plex reconcile skipped: no movies section found');
+      return;
+    }
+
+    const currentNames = new Set(lists.map((l) => l.name));
+    const plexCollections = await fetchPlexCollectionsByLabel(
+      plexUrl,
+      plexToken,
+      sectionId,
+      MOVIENIGHT_PLEX_LABEL,
+    );
+
+    for (const c of plexCollections) {
+      if (currentNames.has(c.title)) continue;
+      try {
+        await deletePlexCollection(plexUrl, plexToken, c.ratingKey);
+        console.log(
+          `[Kometa Exporter] Deleted orphaned Plex collection "${c.title}" (ratingKey ${c.ratingKey})`,
+        );
+      } catch (err) {
+        console.warn(
+          `[Kometa Exporter] Failed to delete Plex collection "${c.title}" (ratingKey ${c.ratingKey}):`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '[Kometa Exporter] Plex reconcile skipped:',
+      err instanceof Error ? err.message : err,
+    );
+  }
 }

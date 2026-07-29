@@ -201,6 +201,8 @@ Generic, extensible tagging framework for movies. Tags are per-user (Alice can t
 
 `exportKometa` writes a YAML collection file to `KOMETA_COLLECTIONS_PATH` and optionally POSTs to `KOMETA_TRIGGER_URL`. `scheduler.ts` runs automated exports (hourly or daily); `initScheduler()` called on startup only when `NODE_ENV === 'production'`.
 
+Every emitted collection carries `label: MovieNight`. After writing the YAML, `runKometaExport` reconciles Plex (via `backend/src/plexClient.ts`): fetches all Plex collections with that label from the movies section and issues `DELETE /library/collections/{ratingKey}` for any whose title is no longer in the current export — cleaning up orphans left behind when a connection is removed or a `namePrefix` changes. Reconcile is skipped silently if `PLEX_URL`/`PLEX_TOKEN` are unset or Plex is unreachable; individual delete failures are logged and don't fail the export.
+
 ### Letterboxd import
 
 `importFromLetterboxd(url)` fetches the public Letterboxd list, parses film titles from HTML (data-item-name), skips duplicates (case-insensitive), optionally matches to TMDB. Returns `{ imported, skipped, tmdb_matched, errors }`.
@@ -242,6 +244,8 @@ Web Push fan-out when a movie is added. Primary target: iPhone PWA users (iOS 16
 - `TMDB_API_KEY` — optional; enables TMDB search and Letterboxd TMDB matching
 - `KOMETA_COLLECTIONS_PATH` — directory for exported Kometa YAML files
 - `KOMETA_TRIGGER_URL` — optional webhook URL to trigger Kometa after export
+- `PLEX_URL`, `PLEX_TOKEN` — optional; enable the Plex reconciler that deletes MovieNight-labeled Plex collections no longer emitted. Skipped silently if either is unset.
+- `PLEX_MOVIES_SECTION_ID` — optional; movies library section key. Auto-resolved via `/library/sections` if unset.
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` — Web Push VAPID keypair. Generate via `npx web-push generate-vapid-keys`. Push notifications are silently disabled if either is missing.
 - `VAPID_SUBJECT` — `mailto:` or `https://` URL identifying the app (defaults to `mailto:admin@movienight.local`).
 
