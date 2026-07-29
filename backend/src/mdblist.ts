@@ -10,8 +10,8 @@ export interface MdbListInfo {
 }
 
 interface MdbListItem {
-  tmdb?: number;
-  imdb?: string;
+  id?: number;
+  ids?: { tmdb?: number; imdb?: string };
 }
 
 interface MdbListItemsResponse {
@@ -50,7 +50,9 @@ async function getListItems(apiKey: string, listId: number): Promise<number[]> {
   }
 
   const data = (await res.json()) as MdbListItemsResponse;
-  return (data.movies || []).filter((m) => m.tmdb).map((m) => m.tmdb!);
+  return (data.movies || [])
+    .map((m) => m.ids?.tmdb ?? m.id)
+    .filter((id): id is number => typeof id === 'number' && id > 0);
 }
 
 /** Remove items from a list by TMDB IDs. */

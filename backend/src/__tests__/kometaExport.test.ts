@@ -16,6 +16,15 @@ jest.mock('fs', () => ({
   promises: { writeFile: mockWriteFile },
 }));
 
+const mockFetchPlexCollectionsByLabel = jest.fn();
+const mockDeletePlexCollection = jest.fn();
+const mockResolveMoviesSectionId = jest.fn();
+jest.mock('../plexClient', () => ({
+  fetchPlexCollectionsByLabel: (...args: any[]) => mockFetchPlexCollectionsByLabel(...args),
+  deletePlexCollection: (...args: any[]) => mockDeletePlexCollection(...args),
+  resolveMoviesSectionId: (...args: any[]) => mockResolveMoviesSectionId(...args),
+}));
+
 import {
   runKometaExport,
   generateMultiCollectionYaml,
@@ -33,6 +42,10 @@ const defaultOptions: ExportOptions = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockWriteFile.mockResolvedValue(undefined);
+  // Default: Plex not configured — reconciler is a no-op.
+  delete process.env.PLEX_URL;
+  delete process.env.PLEX_TOKEN;
+  delete process.env.PLEX_MOVIES_SECTION_ID;
 });
 
 describe('generateMultiCollectionYaml', () => {
@@ -57,6 +70,7 @@ describe('generateMultiCollectionYaml', () => {
     expect(yaml).toContain('mdblist_list: https://mdblist.com/lists/u/alice-bob');
     expect(yaml).toContain('collection_order: custom');
     expect(yaml).toContain('sync_mode: sync');
+    expect(yaml).toContain('label: MovieNight');
     expect(yaml).toContain('radarr_add_missing: true');
   });
 
@@ -538,5 +552,130 @@ describe('runKometaExport', () => {
     );
     expect(insertCall).toBeDefined();
     expect(insertCall![1]).toContain('development');
+  });
+});
+
+describe('runKometaExport Plex reconciler', () => {
+  function mockOneCombinedExport() {
+    // getAcceptedConnections
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          connection_id: 10,
+          u1_id: 1,
+          u1_display: 'Alice',
+          u1_username: 'alice',
+          u2_id: 2,
+          u2_display: 'Bob',
+          u2_username: 'bob',
+        },
+      ],
+    });
+    // getCombinedTmdbIds
+    mockQuery.mockResolvedValueOnce({ rows: [{ tmdb_id: 100 }] });
+    // getOrCreateMdbList — reuse existing
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ mdblist_list_id: 42, mdblist_list_url: 'https://mdblist.com/lists/u/ab' }],
+    });
+    mockSyncList.mockResolvedValueOnce(undefined);
+    // getUsersWithConnections (empty)
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+  }
+
+  it('is a no-op when PLEX_URL / PLEX_TOKEN are unset', async () => {
+    mockOneCombinedExport();
+    await runKometaExport(defaultOptions);
+    expect(mockFetchPlexCollectionsByLabel).not.toHaveBeenCalled();
+    expect(mockDeletePlexCollection).not.toHaveBeenCalled();
+  });
+
+  it('deletes Plex collections not in the current export', async () => {
+    process.env.PLEX_URL = 'http://plex:32400';
+    process.env.PLEX_TOKEN = 'plex-token';
+    process.env.PLEX_MOVIES_SECTION_ID = '1';
+
+    mockOneCombinedExport();
+    mockFetchPlexCollectionsByLabel.mockResolvedValueOnce([
+      { ratingKey: '999', title: 'Alice & Bob' }, // in current export
+      { ratingKey: '888', title: 'MovieNight Watchlist' }, // orphan
+      { ratingKey: '777', title: 'Just Charlie' }, // orphan
+    ]);
+    mockDeletePlexCollection.mockResolvedValue(undefined);
+
+    await runKometaExport(defaultOptions);
+
+    expect(mockFetchPlexCollectionsByLabel).toHaveBeenCalledWith(
+      'http://plex:32400',
+      'plex-token',
+      '1',
+      'MovieNight',
+    );
+    expect(mockDeletePlexCollection).toHaveBeenCalledTimes(2);
+    expect(mockDeletePlexCollection).toHaveBeenCalledWith('http://plex:32400', 'plex-token', '888');
+    expect(mockDeletePlexCollection).toHaveBeenCalledWith('http://plex:32400', 'plex-token', '777');
+  });
+
+  it('auto-resolves movies section ID when not provided', async () => {
+    process.env.PLEX_URL = 'http://plex:32400';
+    process.env.PLEX_TOKEN = 'plex-token';
+
+    mockOneCombinedExport();
+    mockResolveMoviesSectionId.mockResolvedValueOnce('3');
+    mockFetchPlexCollectionsByLabel.mockResolvedValueOnce([]);
+
+    await runKometaExport(defaultOptions);
+
+    expect(mockResolveMoviesSectionId).toHaveBeenCalledWith('http://plex:32400', 'plex-token');
+    expect(mockFetchPlexCollectionsByLabel).toHaveBeenCalledWith(
+      'http://plex:32400',
+      'plex-token',
+      '3',
+      'MovieNight',
+    );
+  });
+
+  it('swallows Plex fetch errors and still returns the export result', async () => {
+    process.env.PLEX_URL = 'http://plex:32400';
+    process.env.PLEX_TOKEN = 'plex-token';
+    process.env.PLEX_MOVIES_SECTION_ID = '1';
+
+    mockOneCombinedExport();
+    mockFetchPlexCollectionsByLabel.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    const result = await runKometaExport(defaultOptions);
+
+    expect(result.lists).toHaveLength(1);
+    expect(mockDeletePlexCollection).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Plex reconcile skipped'),
+      expect.anything(),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('swallows individual delete failures and continues with the rest', async () => {
+    process.env.PLEX_URL = 'http://plex:32400';
+    process.env.PLEX_TOKEN = 'plex-token';
+    process.env.PLEX_MOVIES_SECTION_ID = '1';
+
+    mockOneCombinedExport();
+    mockFetchPlexCollectionsByLabel.mockResolvedValueOnce([
+      { ratingKey: '888', title: 'Orphan One' },
+      { ratingKey: '777', title: 'Orphan Two' },
+    ]);
+    mockDeletePlexCollection
+      .mockRejectedValueOnce(new Error('Plex 500'))
+      .mockResolvedValueOnce(undefined);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    await runKometaExport(defaultOptions);
+
+    expect(mockDeletePlexCollection).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to delete Plex collection "Orphan One"'),
+      expect.anything(),
+    );
+    warnSpy.mockRestore();
   });
 });
