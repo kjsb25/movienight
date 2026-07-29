@@ -50,11 +50,14 @@ describe('mdblist', () => {
 
   describe('syncList', () => {
     it('clears existing items and adds new ones in order', async () => {
-      // getListItems
+      // getListItems — MDBList returns TMDB id under `ids.tmdb`, not top-level `tmdb`
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          movies: [{ tmdb: 100 }, { tmdb: 200 }],
+          movies: [
+            { id: 100, ids: { tmdb: 100 } },
+            { id: 200, ids: { tmdb: 200 } },
+          ],
           shows: [],
         }),
       });
@@ -98,7 +101,7 @@ describe('mdblist', () => {
       // getListItems
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ movies: [{ tmdb: 100 }], shows: [] }),
+        json: async () => ({ movies: [{ id: 100, ids: { tmdb: 100 } }], shows: [] }),
       });
       // removeItems
       mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
@@ -107,6 +110,29 @@ describe('mdblist', () => {
 
       // Only 2 calls: GET + REMOVE (no add)
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('reads existing TMDB ids from ids.tmdb, not top-level tmdb (regression)', async () => {
+      // Prior to the fix, getListItems read m.tmdb which is never populated by
+      // MDBList's real response shape — leaving the sync as add-only and
+      // never pruning stale items.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          movies: [
+            { id: 847, ids: { tmdb: 847, imdb: 'tt0096446' } },
+            { id: 274, ids: { tmdb: 274, imdb: 'tt0102926' } },
+          ],
+          shows: [],
+        }),
+      });
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+      await syncList('key', 1, [999]);
+
+      const removeBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(removeBody.movies).toEqual([{ tmdb: 847 }, { tmdb: 274 }]);
     });
 
     it('propagates API errors', async () => {
